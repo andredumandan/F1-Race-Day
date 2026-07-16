@@ -1,0 +1,20 @@
+# Node
+node_modules/
+npm-debug.log
+.env
+
+# Next.js build output
+.next/
+out/
+
+# Python bytecode and cache
+__pycache__/
+*.pyc
+
+# Docker cache
+docker-compose.yml
+.dockerignore
+
+# Misc
+.DS_Store
+Thumbs.db

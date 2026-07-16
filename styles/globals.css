@@ -1,0 +1,22 @@
+/* globals.css */
+
+:root {
+  --f1-red: #e00000;
+  --f1-black: #000000;
+  --f1-white: #ffffff;
+}
+
+html, body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
