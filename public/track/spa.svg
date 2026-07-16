@@ -1,0 +1,6 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <rect width="300" height="200" fill="var(--gray-50, #f0f0f0)" />
+  <path d="M 40,170 C 30,130 50,70 100,50 C 150,30 180,80 160,100 C 140,120 110,100 130,70 C 150,40 220,40 260,80 C 280,100 280,140 250,160 C 220,180 180,180 160,160 C 140,140 130,120 100,130 C 70,140 60,160 40,170"
+        fill="none" stroke="var(--gray-300, #ccc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="40" y1="170" x2="50" y2="178" stroke="var(--gray-300, #ccc)" stroke-width="2" />
+</svg>

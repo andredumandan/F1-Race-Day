@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+  <rect width="300" height="200" fill="var(--gray-50, #f0f0f0)" rx="4"/>
+  <path d="M 60 170 L 240 170 Q 280 170 280 130 L 280 70 Q 280 30 240 30 L 60 30 Q 20 30 20 70 L 20 130 Q 20 170 60 170 Z"
+        fill="none" stroke="var(--gray-200, #ddd)" stroke-width="4"/>
+  <line x1="150" y1="170" x2="150" y2="30" stroke="var(--gray-100, #eee)" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="60" y1="100" x2="240" y2="100" stroke="var(--gray-100, #eee)" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="150" y="18" text-anchor="middle" fill="var(--gray-400, #aaa)" font-size="8" font-family="sans-serif">START/FINISH</text>
+</svg>

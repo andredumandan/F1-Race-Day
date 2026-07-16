@@ -1,15 +1,40 @@
-/* globals.css */
+/* ─── Design Token System ────────────────────────────────── */
 
 :root {
-  --f1-red: #e00000;
-  --f1-black: #000000;
-  --f1-white: #ffffff;
+  /* Color */
+  --red: #E10600;
+  --red-hover: #B80500;
+  --black: #111111;
+  --white: #FFFFFF;
+  --gray-50: #F5F5F5;
+  --gray-100: #E5E5E5;
+  --gray-200: #CCCCCC;
+  --gray-400: #999999;
+  --gray-600: #666666;
+  --gray-800: #333333;
+  --gray-900: #1A1A1A;
+
+  /* Layout */
+  --max-width: 1280px;
+  --sidebar-width: 340px;
+  --header-height: 56px;
+  --border-radius: 4px;
+
+  /* Typography */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 html, body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--gray-900);
+  background: var(--gray-50);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -19,4 +44,69 @@ a {
 
 * {
   box-sizing: border-box;
+}
+
+/* ─── Utility classes ───────────────────────────────────── */
+
+.timing-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--border-radius);
+  padding: 16px;
+}
+
+.f1-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background: var(--red);
+  color: var(--white);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.f1-button:hover {
+  background: var(--red-hover);
+}
+
+/* ─── Keyframes ──────────────────────────────────────────── */
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes moveAlongTrack {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
