@@ -5,38 +5,27 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 const TRACK_SVGS: Record<string, string> = {
   'Abu Dhabi': 'abu_dhabi',
-  'Baku': 'baku',
-  'Bahrain': 'bahrain',
-  'Barcelona': 'barcelona',
-  'Budapest': 'budapest',
-  'Cota': 'cota',
-  'Doha': 'losail',
-  'Imola': 'imola',
-  'Interlagos': 'interlagos',
-  'Jeddah': 'jeddah',
-  'Las Vegas': 'las_vegas',
-  'Lusail': 'losail',
-  'Marina Bay': 'singapore',
-  'Melbourne': 'melbourne',
-  'Mexico City': 'mexico_city',
-  'Miami': 'miami',
-  'Monaco': 'monaco',
-  'Montreal': 'montreal',
-  'Monza': 'monza',
-  'Mugello': 'mugello',
-  'Nürburgring': 'nurburgring',
-  'Portimão': 'portimao',
+  'Albert Park Grand Prix Circuit': 'melbourne',
+  'Autódromo José Carlos Pace': 'interlagos',
+  'Autodromo Nazionale di Monza': 'monza',
+  'Autódromo Hermanos Rodríguez': 'mexico_city',
+  'Baku City Circuit': 'baku',
+  'Circuit de Barcelona-Catalunya': 'barcelona',
+  'Circuit de Monaco': 'monaco',
+  'Circuit de Spa-Francorchamps': 'spa',
+  'Circuit Gilles Villeneuve': 'montreal',
+  'Circuit of the Americas': 'cota',
+  'Circuit Park Zandvoort': 'zandvoort',
+  'Hungaroring': 'budapest',
+  'Las Vegas Strip Street Circuit': 'las_vegas',
+  'Losail International Circuit': 'losail',
+  'Marina Bay Street Circuit': 'singapore',
+  'Miami International Autodrome': 'miami',
   'Red Bull Ring': 'spielberg',
-  'Sakhir': 'bahrain',
-  'Sao Paulo': 'interlagos',
-  'Shanghai': 'shanghai',
-  'Silverstone': 'silverstone',
-  'Singapore': 'singapore',
-  'Sochi': 'sochi',
-  'Spa-Francorchamps': 'spa',
-  'Suzuka': 'suzuka',
-  'Zandvoort': 'zandvoort',
-  'Zeltweg': 'spielberg',
+  'Shanghai International Circuit': 'shanghai',
+  'Silverstone Circuit': 'silverstone',
+  'Suzuka Circuit': 'suzuka',
+  'Yas Marina Circuit': 'abu_dhabi',
 }
 
 interface Props {
@@ -51,38 +40,96 @@ export default function LiveRaceView({ circuitName, round }: Props) {
     { refreshInterval: 15000, revalidateOnFocus: false }
   )
 
-  const svgKey = circuitName ? TRACK_SVGS[circuitName] || circuitName.toLowerCase().replace(/[^a-z0-9]/g, '_') : null
+  const svgKey = circuitName ? (TRACK_SVGS[circuitName] || circuitName.toLowerCase().replace(/[^a-z0-9]/g, '_')) : null
   const svgUrl = svgKey ? `/track/${svgKey}.svg` : null
 
-  const localTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const isLive = drivers && drivers.length > 0
 
-  if (error) {
-    return (
-      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--gray-400)' }}>
-        Server unavailable. Check back during a live session.
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Track map hero */}
+      <div className="panel" style={{
+        position: 'relative',
+        width: '100%',
+        background: 'var(--bg)',
+        overflow: 'hidden',
+      }}>
+        {!isLive && !error && !isValidating && (
+          <div style={{
+            padding: 40,
+            textAlign: 'center',
+            animation: 'fadeIn 0.4s ease-out',
+          }}>
+            <div className="label-group" style={{ fontSize: 12, marginBottom: 8 }}>
+              Track View
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+              fontSize: 18,
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+              color: 'var(--text-dim)',
+              marginBottom: 6,
+            }}>
+              {circuitName || 'No circuit selected'}
+            </div>
+            <div className="data-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {error ? 'server unavailable' : 'data appears when session is live'}
+            </div>
+          </div>
+        )}
+
+        {isValidating && !drivers && (
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            <div className="data-mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              connecting…
+            </div>
+          </div>
+        )}
+
+        {isLive && (
+          <>
+            {/* Live indicator */}
+            <div style={{
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 10,
+            }}>
+              <span style={{
+                display: 'inline-block',
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#00E676',
+                animation: 'pulse-dot 1.5s ease-in-out infinite',
+              }} />
+              <span className="data-mono" style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>
+                LIVE
+              </span>
+              <span className="data-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {drivers.length} drivers
+              </span>
+            </div>
+
+            <TrackMap svgUrl={svgUrl} drivers={drivers} />
+          </>
+        )}
       </div>
-    )
-  }
 
-  if (!drivers && isValidating) {
-    return (
-      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--gray-400)' }}>
-        Connecting…
-      </div>
-    )
-  }
+      {/* Driver timing grid */}
+      {isLive && (
+        <DriverList drivers={drivers} />
+      )}
+    </div>
+  )
+}
 
-  if (drivers && drivers.length === 0) {
-    return (
-      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--gray-400)' }}>
-        No live session right now
-      </div>
-    )
-  }
-
-  if (!drivers) return null
-
-  // Compute bounding box for positions
+function TrackMap({ svgUrl, drivers }: { svgUrl: string | null; drivers: Driver[] }) {
   const hasPositions = drivers.some(d => d.x != null && d.y != null)
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
   if (hasPositions) {
@@ -97,48 +144,68 @@ export default function LiveRaceView({ circuitName, round }: Props) {
   }
   const rangeX = maxX - minX || 1
   const rangeY = maxY - minY || 1
-
   const PADDING = 40
-  const SVG_W = 300
-  const SVG_H = 200
+  const SVG_W = 500
+  const SVG_H = 300
+
+  // Find the leader (driver with position 1)
+  const leader = hasPositions ? drivers.find(d => d.position === 1)?.driverNumber : null
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Track / Position overlay */}
-      <div style={{ position: 'relative', width: '100%', maxWidth: 400, margin: '0 auto', aspectRatio: '3 / 2', background: 'var(--gray-50)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
-        <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} width="100%" height="100%" style={{ display: 'block' }}>
-          {/* If we have a circuit SVG, draw it behind */}
-          {svgUrl ? (
-            <image href={svgUrl} x="0" y="0" width={SVG_W} height={SVG_H} preserveAspectRatio="xMidYMid meet" opacity={0.2} />
-          ) : null}
+    <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} width="100%" height="100%" style={{
+      display: 'block',
+      minHeight: 200,
+      animation: 'fadeIn 0.5s ease-out',
+    }}>
+      {svgUrl && (
+        <image
+          href={svgUrl}
+          x="0" y="0"
+          width={SVG_W}
+          height={SVG_H}
+          preserveAspectRatio="xMidYMid meet"
+          opacity={0.15}
+        />
+      )}
 
-          {/* Driver dots */}
-          {hasPositions && drivers.map(d => {
-            if (d.x == null || d.y == null) return null
-            const px = PADDING + ((d.x - minX) / rangeX) * (SVG_W - 2 * PADDING)
-            const py = PADDING + ((d.y - minY) / rangeY) * (SVG_H - 2 * PADDING)
+      {hasPositions && drivers.map(d => {
+        if (d.x == null || d.y == null) return null
+        const px = PADDING + ((d.x - minX) / rangeX) * (SVG_W - 2 * PADDING)
+        const py = PADDING + ((d.y - minY) / rangeY) * (SVG_H - 2 * PADDING)
+        const isLeader = d.driverNumber === leader
 
-            return (
-              <g key={d.driverNumber}>
-                <circle cx={px} cy={py} r={6} fill="var(--red)" stroke="var(--white)" strokeWidth={2} />
-                <text
-                  x={px} y={py - 10}
-                  textAnchor="middle"
-                  fill="var(--gray-900)"
-                  fontFamily="var(--font-mono)"
-                  fontWeight={600}
-                  fontSize={8}
-                >
-                  {d.position}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      </div>
-
-      {/* Driver table */}
-      <DriverList drivers={drivers} />
-    </div>
+        return (
+          <g key={d.driverNumber}>
+            <circle
+              cx={px} cy={py}
+              r={isLeader ? 8 : 5}
+              fill={isLeader ? 'var(--amber)' : 'var(--cyan)'}
+              stroke={isLeader ? 'var(--amber)' : 'var(--cyan)'}
+              strokeWidth={isLeader ? 2 : 0}
+              opacity={isLeader ? 1 : 0.7}
+              style={isLeader ? { animation: 'pulse-dot 2s ease-in-out infinite' } : undefined}
+            />
+            <circle
+              cx={px} cy={py}
+              r={isLeader ? 14 : 10}
+              fill="none"
+              stroke={isLeader ? 'var(--amber)' : 'var(--cyan)'}
+              strokeWidth={1}
+              opacity={0.2}
+            />
+            <text
+              x={px} y={py - (isLeader ? 16 : 12)}
+              textAnchor="middle"
+              fill={isLeader ? 'var(--amber)' : 'var(--text-dim)'}
+              fontFamily="var(--font-mono)"
+              fontWeight={600}
+              fontSize={10}
+            >
+              {d.position}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
   )
 }

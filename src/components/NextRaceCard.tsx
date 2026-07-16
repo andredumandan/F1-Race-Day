@@ -37,8 +37,7 @@ export default function NextRaceCard({ race, loading }: Props) {
 
   useEffect(() => {
     if (!race) return
-    const ns = findNextSession(race.sessions)
-    setNextSession(ns)
+    setNextSession(findNextSession(race.sessions))
   }, [race])
 
   useEffect(() => {
@@ -53,16 +52,16 @@ export default function NextRaceCard({ race, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="card" style={{ minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-400)' }}>
-        Loading…
+      <div className="panel" style={{ padding: 20, textAlign: 'center' }}>
+        <span className="data-mono" style={{ color: 'var(--text-muted)', fontSize: 12 }}>loading…</span>
       </div>
     )
   }
 
   if (!race) {
     return (
-      <div className="card" style={{ minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-400)' }}>
-        No upcoming race
+      <div className="panel" style={{ padding: 20, textAlign: 'center' }}>
+        <span className="label-group" style={{ fontSize: 12 }}>No upcoming race</span>
       </div>
     )
   }
@@ -73,56 +72,68 @@ export default function NextRaceCard({ race, loading }: Props) {
   const seconds = Math.floor((remaining % 60000) / 1000)
 
   return (
-    <div className="card">
-      {/* Race header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, color: 'var(--gray-900)' }}>
-            {race.raceName}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--gray-600)', marginTop: 2 }}>
-            {race.circuitName} &middot; {race.location}, {race.country}
-          </div>
-        </div>
-        {nextSession && (
-          <div style={{
-            background: 'var(--red)',
-            color: 'var(--white)',
-            padding: '2px 8px',
-            borderRadius: 'var(--border-radius)',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}>
-            {sessionLabel(nextSession.session.label)}
-          </div>
-        )}
+    <div className="panel" style={{ padding: 20 }}>
+      <div className="label-group" style={{ marginBottom: 14 }}>
+        {nextSession ? `Next: ${sessionLabel(nextSession.session.label)}` : 'Season'}
       </div>
 
-      {/* Countdown */}
+      <div style={{
+        fontFamily: 'var(--font-display)',
+        fontWeight: 700,
+        fontSize: 24,
+        lineHeight: 1.1,
+        letterSpacing: '0.01em',
+        textTransform: 'uppercase',
+        color: 'var(--text)',
+        marginBottom: 2,
+      }}>
+        {race.raceName}
+      </div>
+      <div className="dim" style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 400, marginBottom: 16 }}>
+        {race.circuitName}
+      </div>
+
       {nextSession ? (
-        <div style={{ textAlign: 'center', padding: '8px 0' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 32, letterSpacing: 2 }}>
-            {remaining > 0 ? (
-              <>
-                {String(days).padStart(2, '0')}<span style={{ color: 'var(--gray-400)', fontSize: 16 }}>d</span>
-                {' '}
-                {String(hours).padStart(2, '0')}<span style={{ color: 'var(--gray-400)', fontSize: 16 }}>h</span>
-                {' '}
-                {String(minutes).padStart(2, '0')}<span style={{ color: 'var(--gray-400)', fontSize: 16 }}>m</span>
-                {' '}
-                {String(seconds).padStart(2, '0')}<span style={{ color: 'var(--gray-400)', fontSize: 16 }}>s</span>
-              </>
-            ) : 'LIVE'}
-          </div>
-          {remaining > 0 && nextSession.session.dateUtc && (
-            <div style={{ fontSize: 12, color: 'var(--gray-600)', marginTop: 4 }}>
-              {formatLocalTime(nextSession.session.dateUtc, 'EEE MMM d, p')}
+        <>
+          {remaining > 0 ? (
+            <div style={{
+              display: 'flex',
+              gap: 4,
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              fontWeight: 700,
+              fontSize: 30,
+              letterSpacing: '0.02em',
+              color: 'var(--amber)',
+              marginBottom: 8,
+            }}>
+              <span>{String(days).padStart(2, '0')}<span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>d</span></span>
+              <span style={{ color: 'var(--text-muted)' }}>:</span>
+              <span>{String(hours).padStart(2, '0')}<span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>h</span></span>
+              <span style={{ color: 'var(--text-muted)' }}>:</span>
+              <span>{String(minutes).padStart(2, '0')}<span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>m</span></span>
+              <span style={{ color: 'var(--text-muted)' }}>:</span>
+              <span>{String(seconds).padStart(2, '0')}<span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>s</span></span>
+            </div>
+          ) : (
+            <div style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 20,
+              letterSpacing: '0.04em',
+              color: 'var(--red)',
+              textTransform: 'uppercase',
+              marginBottom: 8,
+            }}>
+              <span style={{ animation: 'amberPulse 1.5s ease-in-out infinite' }}>● Live</span>
             </div>
           )}
-        </div>
+          <div className="data-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {formatLocalTime(nextSession.session.dateUtc!, 'EEE MMM d, p')}
+          </div>
+        </>
       ) : (
-        <div style={{ textAlign: 'center', padding: 8, color: 'var(--gray-400)', fontFamily: 'var(--font-mono)', fontSize: 14 }}>
+        <div className="data-mono" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
           Season concluded
         </div>
       )}

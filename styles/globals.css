@@ -1,89 +1,77 @@
-/* ─── Design Token System ────────────────────────────────── */
-
 :root {
-  /* Color */
-  --red: #E10600;
-  --red-hover: #B80500;
-  --black: #111111;
-  --white: #FFFFFF;
-  --gray-50: #F5F5F5;
-  --gray-100: #E5E5E5;
-  --gray-200: #CCCCCC;
-  --gray-400: #999999;
-  --gray-600: #666666;
-  --gray-800: #333333;
-  --gray-900: #1A1A1A;
+  --bg: #0B0E11;
+  --surface: #161A1F;
+  --surface-hover: #1F242B;
+  --border: #262B32;
+  --text: #E4E7EB;
+  --text-dim: #88919C;
+  --text-muted: #5A626B;
+  --red: #DA291C;
+  --amber: #F5A623;
+  --cyan: #00D4AA;
+  --green: #00E676;
 
-  /* Layout */
-  --max-width: 1280px;
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --max-width: 1440px;
   --sidebar-width: 340px;
-  --header-height: 56px;
-  --border-radius: 4px;
-
-  /* Typography */
-  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --header-height: 44px;
 }
 
 html, body {
   padding: 0;
   margin: 0;
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
-  color: var(--gray-900);
-  background: var(--gray-50);
+  color: var(--text);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+a { color: inherit; text-decoration: none; }
+* { box-sizing: border-box; }
+
+::selection {
+  background: var(--red);
+  color: var(--bg);
 }
 
-* {
-  box-sizing: border-box;
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
-/* ─── Utility classes ───────────────────────────────────── */
+.hairline {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
 
-.timing-mono {
+.label-group {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.data-mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-.card {
-  background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--border-radius);
-  padding: 16px;
-}
+.amber { color: var(--amber); }
+.cyan { color: var(--cyan); }
+.red { color: var(--red); }
+.dim { color: var(--text-dim); }
 
-.f1-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  background: var(--red);
-  color: var(--white);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 13px;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-}
-
-.f1-button:hover {
-  background: var(--red-hover);
-}
-
-/* ─── Keyframes ──────────────────────────────────────────── */
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 @keyframes fadeIn {
@@ -92,16 +80,14 @@ a {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes moveAlongTrack {
-  from { offset-distance: 0%; }
-  to { offset-distance: 100%; }
+@keyframes amberPulse {
+  0%, 100% { opacity: 1; text-shadow: 0 0 4px rgba(245, 166, 35, 0.3); }
+  50% { opacity: 0.7; text-shadow: 0 0 8px rgba(245, 166, 35, 0.6); }
 }
-
-/* ─── Reduced motion ─────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

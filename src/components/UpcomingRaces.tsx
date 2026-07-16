@@ -22,84 +22,96 @@ interface Props {
 }
 
 export default function UpcomingRaces({ races, selectedRace, onSelectRace }: Props) {
-  // Find the next 5 that haven't happened yet
   const now = Date.now()
-  const upcoming = races.filter(r => {
-    // Check if any session is in the future
-    return r.sessions.some(s => s.dateUtc && new Date(s.dateUtc).getTime() > now)
-  }).slice(0, 5)
+  const upcoming = races.filter(r =>
+    r.sessions.some(s => s.dateUtc && new Date(s.dateUtc).getTime() > now)
+  ).slice(0, 5)
 
   if (upcoming.length === 0) return null
 
+  const roundNum = (r: Race) => parseInt(r.round, 10)
+
   return (
-    <div>
-      <div style={{
-        fontFamily: 'var(--font-display)',
-        fontWeight: 600,
-        fontSize: 11,
-        color: 'var(--gray-600)',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 8,
-      }}>
-        Upcoming Races
+    <div className="panel" style={{ padding: '16px 0' }}>
+      <div className="label-group" style={{ padding: '0 20px', marginBottom: 10 }}>
+        Calendar
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {upcoming.map(r => {
-          // Find the race session date
-          const raceSession = r.sessions.find(s => s.label === 'Race')
-          const dateDisplay = raceSession?.dateUtc
-            ? formatLocalTime(raceSession.dateUtc, 'MMM d, yyyy')
-            : 'TBD'
 
-          const isSelected = selectedRace === r.round
-          const roundNum = parseInt(r.round, 10)
+      {upcoming.map((r, i) => {
+        const isSelected = selectedRace === r.round
+        const raceSession = r.sessions.find(s => s.label === 'Race')
+        const dateDisplay = raceSession?.dateUtc
+          ? formatLocalTime(raceSession.dateUtc, 'MMM d')
+          : null
 
-          return (
-            <div
-              key={r.round}
-              onClick={() => onSelectRace?.(r.round)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '8px 12px',
-                borderRadius: 'var(--border-radius)',
-                cursor: 'pointer',
-                background: isSelected ? 'var(--gray-100)' : 'transparent',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--gray-50)' }}
-              onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
+        return (
+          <div
+            key={r.round}
+            onClick={() => onSelectRace?.(r.round)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter') onSelectRace?.(r.round) }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 20px',
+              cursor: 'pointer',
+              borderLeft: isSelected ? '2px solid var(--amber)' : '2px solid transparent',
+              background: isSelected ? 'var(--surface-hover)' : 'transparent',
+              transition: 'background 0.1s, border-color 0.1s',
+              userSelect: 'none',
+            }}
+            onMouseEnter={e => {
+              if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'
+            }}
+            onMouseLeave={e => {
+              if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent'
+            }}
+          >
+            <span className="data-mono" style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: isSelected ? 'var(--amber)' : 'var(--text-muted)',
+              minWidth: 20,
+            }}>
+              {String(roundNum(r)).padStart(2, '0')}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                width: 28,
-                height: 28,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--gray-100)',
-                borderRadius: '50%',
-                fontFamily: 'var(--font-mono)',
+                fontFamily: 'var(--font-display)',
                 fontWeight: 600,
-                fontSize: 12,
-                color: 'var(--gray-800)',
-                flexShrink: 0,
+                fontSize: 14,
+                letterSpacing: '0.01em',
+                textTransform: 'uppercase',
+                color: 'var(--text)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}>
-                {roundNum}
+                {r.raceName}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.raceName}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gray-600)', marginTop: 1 }}>
-                  {dateDisplay}
-                </div>
+              <div className="data-mono" style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                marginTop: 1,
+              }}>
+                {r.circuitName}
               </div>
             </div>
-          )
-        })}
-      </div>
+            {dateDisplay && (
+              <div className="data-mono" style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                textAlign: 'right',
+                flexShrink: 0,
+              }}>
+                {dateDisplay}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
