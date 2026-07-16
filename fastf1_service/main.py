@@ -86,6 +86,20 @@ def _decode_compressed(payload: str) -> Any:
     return json.loads(inflated)
 
 
+def _deep_merge(base: Any, update: Any) -> Any:
+    """F1 sends most topics (TimingData, TimingAppData, DriverList,
+    RaceControlMessages, ...) as incremental diffs, not full snapshots -
+    one message might only touch one driver's one field. Overwriting the
+    stored value with just the latest message would lose everything else.
+    This merges dicts recursively; update wins on scalar conflicts."""
+    if isinstance(base, dict) and isinstance(update, dict):
+        merged = dict(base)
+        for k, v in update.items():
+            merged[k] = _deep_merge(base.get(k), v)
+        return merged
+    return update
+
+
 def _parse_line(line: str) -> Optional[List[Any]]:
     """Each recorded line is a Python repr of [topic, payload, timestamp],
     written by SignalRClient via str(msg). Not JSON (single quotes, True/
@@ -131,11 +145,21 @@ def _tail_and_update(stop_event: threading.Event) -> None:
                 except Exception:
                     # Decoding is best-effort; skip malformed frames
                     continue
-            with _state_lock:
-                latest_by_topic[topic] = {
-                    "data": value,
-                    "received_at": time.time(),
-                }
+                with _state_lock:
+                    # CarData.z / Position.z arrive as full snapshots per
+                    # tick, not diffs - overwrite is correct here.
+                    latest_by_topic[topic] = {
+                        "data": value,
+                        "received_at": time.time(),
+                    }
+            else:
+                with _state_lock:
+                    prior = latest_by_topic.get(topic, {}).get("data")
+                    merged = _deep_merge(prior, value)
+                    latest_by_topic[topic] = {
+                        "data": merged,
+                        "received_at": time.time(),
+                    }
         time.sleep(1)
 
 
@@ -219,3 +243,84 @@ def get_live(topic: Optional[str] = None) -> dict:
                 )
             return {topic: latest_by_topic[topic]}
         return dict(latest_by_topic)
+
+
+@app.get("/summary")
+def get_summary() -> dict:
+    """Reshapes the raw F1 topics into a clean per-driver object, so a
+    companion app doesn't need to know F1's internal message format.
+
+    NOTE ON RELIABILITY: field names below (Lines, GapToLeader, Stints,
+    Compound, etc.) are based on FastF1's community-documented schema for
+    these topics, but F1 has changed this format before without notice,
+    and this hasn't been validated against a real live session yet since
+    none is running right now. Treat the shape as "best effort" until
+    you've checked it against a real race weekend - check /live?topic=
+    TimingData directly if a field looks wrong or missing, and adjust the
+    extraction below to match what's actually coming through.
+    """
+    with _state_lock:
+        timing = (latest_by_topic.get("TimingData") or {}).get("data") or {}
+        app_data = (latest_by_topic.get("TimingAppData") or {}).get("data") or {}
+        drivers_meta = (latest_by_topic.get("DriverList") or {}).get("data") or {}
+        track_status = (latest_by_topic.get("TrackStatus") or {}).get("data")
+        race_control = (latest_by_topic.get("RaceControlMessages") or {}).get("data") or {}
+
+    if not timing:
+        raise HTTPException(
+            status_code=503,
+            detail="No TimingData yet - no session live, or data hasn't "
+                   "arrived. Check /health, or /live?topic=TimingData "
+                   "directly.",
+        )
+
+    timing_lines = timing.get("Lines", {}) if isinstance(timing, dict) else {}
+    app_lines = app_data.get("Lines", {}) if isinstance(app_data, dict) else {}
+
+    drivers = []
+    for car_number, line in timing_lines.items():
+        if not isinstance(line, dict):
+            continue
+
+        meta = drivers_meta.get(car_number, {}) if isinstance(drivers_meta, dict) else {}
+        app_line = app_lines.get(car_number, {}) if isinstance(app_lines, dict) else {}
+
+        # Current tyre = highest-indexed (most recent) stint entry
+        stints = app_line.get("Stints", {}) if isinstance(app_line, dict) else {}
+        current_stint = None
+        if isinstance(stints, dict) and stints:
+            try:
+                last_key = sorted(stints.keys(), key=lambda k: int(k))[-1]
+                current_stint = stints[last_key]
+            except (ValueError, TypeError):
+                current_stint = next(iter(stints.values()), None)
+
+        drivers.append({
+            "carNumber": car_number,
+            "tla": meta.get("Tla"),
+            "fullName": meta.get("FullName") or meta.get("BroadcastName"),
+            "team": meta.get("TeamName"),
+            "position": line.get("Position"),
+            "gapToLeader": line.get("GapToLeader"),
+            "intervalToAhead": (line.get("IntervalToPositionAhead") or {}).get("Value")
+                if isinstance(line.get("IntervalToPositionAhead"), dict) else None,
+            "lastLapTime": (line.get("LastLapTime") or {}).get("Value")
+                if isinstance(line.get("LastLapTime"), dict) else None,
+            "inPit": line.get("InPit"),
+            "pitCount": line.get("NumberOfPitStops"),
+            "retired": line.get("Retired"),
+            "compound": current_stint.get("Compound") if current_stint else None,
+            "stintLaps": current_stint.get("TotalLaps") if current_stint else None,
+        })
+
+    # Sort by position when available, unknowns last
+    drivers.sort(key=lambda d: (d["position"] is None, d["position"] or 999))
+
+    rc_messages = race_control.get("Messages") if isinstance(race_control, dict) else None
+    recent_rc = list(rc_messages.values())[-5:] if isinstance(rc_messages, dict) else []
+
+    return {
+        "trackStatus": track_status,
+        "recentRaceControlMessages": recent_rc,
+        "drivers": drivers,
+    }

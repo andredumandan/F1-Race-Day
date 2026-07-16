@@ -56,6 +56,24 @@ Since the free tier spins down when idle, have n8n hit `/health` first to
 warm the service up before the real `/live` call if this runs on a
 schedule.
 
+## 3.5️⃣ /summary - the companion-app-friendly endpoint
+
+```
+GET https://<service>.onrender.com/summary
+```
+Returns a clean per-driver array (position, gap to leader, last lap, current
+tyre + stint length, in-pit flag, pit count) plus track status and the last
+5 race control messages - built for a UI, not for parsing F1's raw format
+yourself.
+
+**Caveat:** the field names this pulls from (`GapToLeader`, `Stints`,
+`Compound`, etc.) are based on FastF1's community-documented schema, not an
+official spec, and haven't been validated against a real live session yet.
+If a field comes back `null` when it shouldn't, check
+`/live?topic=TimingData` or `/live?topic=TimingAppData` directly to see
+what F1 is actually sending and adjust the extraction in `get_summary()`
+accordingly.
+
 ## 4️⃣ Verify the service
 
 While an F1 session is live, visit:

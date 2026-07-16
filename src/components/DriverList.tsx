@@ -1,15 +1,21 @@
-export interface Driver {
-  driverNumber: number
-  position?: number
-  gapToLeader?: string | number | null
-  laps?: number
-  speedKmh?: number
-  x?: number
-  y?: number
+export interface SummaryDriver {
+  carNumber: string
+  tla: string | null
+  fullName: string | null
+  team: string | null
+  position: number | null
+  gapToLeader: string | null
+  intervalToAhead: string | null
+  lastLapTime: string | null
+  inPit: boolean | null
+  pitCount: number | null
+  retired: boolean | null
+  compound: string | null
+  stintLaps: number | null
 }
 
 interface Props {
-  drivers: Driver[]
+  drivers: SummaryDriver[]
 }
 
 const TEAM_NUMBERS: Record<number, string> = {
@@ -20,8 +26,16 @@ const TEAM_NUMBERS: Record<number, string> = {
   22: 'vcarb', 3: 'vcarb', 5: 'sauber', 24: 'sauber',
 }
 
-function teamName(num: number): string {
-  return TEAM_NUMBERS[num] || 'unknown'
+const COMPOUND_COLORS: Record<string, string> = {
+  SOFT: '#DA291C',
+  MEDIUM: '#F5A623',
+  HARD: '#FFFFFF',
+  INTERMEDIATE: '#00E676',
+  WET: '#4A90D9',
+}
+
+function teamLogo(num: string): string {
+  return `/logos/${TEAM_NUMBERS[parseInt(num, 10)] || 'unknown'}.svg`
 }
 
 export default function DriverList({ drivers }: Props) {
@@ -30,101 +44,164 @@ export default function DriverList({ drivers }: Props) {
   const sorted = [...drivers].sort((a, b) => (a.position ?? 999) - (b.position ?? 999))
 
   return (
-    <div className="panel" style={{ borderTop: 'none', overflow: 'auto' }}>
+    <div className="panel" style={{ borderTop: 'none', overflowX: 'auto' }}>
       <table style={{
         width: '100%',
         borderCollapse: 'collapse',
         fontVariantNumeric: 'tabular-nums',
+        minWidth: 640,
       }}>
         <thead>
           <tr className="label-group" style={{
             fontSize: 10,
             borderBottom: '1px solid var(--border)',
           }}>
-            <td style={{ padding: '10px 12px', width: 32, textAlign: 'center' }}>#</td>
-            <td style={{ padding: '10px 12px' }}>Driver</td>
-            <td style={{ padding: '10px 12px', textAlign: 'right' }}>Gap</td>
-            <td style={{ padding: '10px 12px', textAlign: 'right' }}>Laps</td>
-            <td style={{ padding: '10px 12px', textAlign: 'right' }}>Speed</td>
+            <td style={{ padding: '10px 8px', width: 28, textAlign: 'center' }}>#</td>
+            <td style={{ padding: '10px 8px' }}>Driver</td>
+            <td style={{ padding: '10px 8px', textAlign: 'right' }}>Gap</td>
+            <td style={{ padding: '10px 8px', textAlign: 'right' }}>Interval</td>
+            <td style={{ padding: '10px 8px', textAlign: 'right' }}>Last Lap</td>
+            <td style={{ padding: '10px 8px', textAlign: 'center' }}>Tyre</td>
+            <td style={{ padding: '10px 8px', textAlign: 'center' }}>Stint</td>
+            <td style={{ padding: '10px 8px', textAlign: 'center', width: 44 }}>Status</td>
           </tr>
         </thead>
         <tbody>
           {sorted.map(d => {
             const isLeader = d.position === 1
+            const isRetired = d.retired === true
+            const isInPit = d.inPit === true
+            const compoundKey = d.compound?.toUpperCase() ?? ''
+            const compoundColor = COMPOUND_COLORS[compoundKey] ?? null
+
             return (
               <tr
-                key={d.driverNumber}
+                key={d.carNumber}
                 style={{
                   borderBottom: '1px solid var(--border)',
                   transition: 'background 0.1s',
                   animation: 'fadeIn 0.2s ease-out',
+                  opacity: isRetired ? 0.4 : 1,
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 <td style={{
-                  padding: '10px 12px',
+                  padding: '10px 8px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
                   fontSize: 15,
                   textAlign: 'center',
                   color: isLeader ? 'var(--amber)' : 'var(--text)',
-                  width: 32,
                 }}>
                   {d.position ?? '-'}
                 </td>
                 <td style={{
-                  padding: '10px 12px',
+                  padding: '10px 8px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
+                  gap: 8,
                 }}>
                   <img
-                    src={`/logos/${teamName(d.driverNumber)}.svg`}
+                    src={teamLogo(d.carNumber)}
                     alt=""
-                    style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0, opacity: 0.8 }}
+                    style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, opacity: 0.8 }}
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                   />
-                  <span className="data-mono" style={{
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
                     fontWeight: 600,
                     fontSize: 14,
                     color: isLeader ? 'var(--amber)' : 'var(--text)',
                   }}>
-                    {d.driverNumber}
+                    {d.carNumber}
                   </span>
+                  {d.tla && (
+                    <span style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 600,
+                      fontSize: 12,
+                      color: 'var(--text-dim)',
+                      letterSpacing: '0.04em',
+                    }}>
+                      {d.tla}
+                    </span>
+                  )}
                 </td>
                 <td className="data-mono" style={{
-                  padding: '10px 12px',
+                  padding: '10px 8px',
                   textAlign: 'right',
                   fontSize: 13,
                   fontWeight: 500,
                   color: isLeader ? 'var(--amber)' : (
-                    d.gapToLeader != null && d.gapToLeader !== 'LEADER'
-                      ? 'var(--text)'
-                      : 'var(--text-muted)'
+                    d.gapToLeader && d.gapToLeader !== 'LEADER'
+                      ? 'var(--text)' : 'var(--text-muted)'
                   ),
                 }}>
-                  {d.gapToLeader != null
-                    ? typeof d.gapToLeader === 'number'
-                      ? `+${d.gapToLeader.toFixed(3)}`
-                      : String(d.gapToLeader)
-                    : d.position === 1 ? 'LEADER' : '-'}
+                  {isRetired ? '-' : (
+                    d.position === 1 ? 'LEADER' : (d.gapToLeader != null ? String(d.gapToLeader) : '-')
+                  )}
                 </td>
                 <td className="data-mono" style={{
-                  padding: '10px 12px',
+                  padding: '10px 8px',
                   textAlign: 'right',
                   fontSize: 13,
-                  color: 'var(--text-dim)',
+                  color: d.intervalToAhead ? 'var(--text-dim)' : 'var(--text-muted)',
                 }}>
-                  {d.laps ?? '-'}
+                  {isRetired ? '-' : (d.intervalToAhead ?? '-')}
                 </td>
                 <td className="data-mono" style={{
-                  padding: '10px 12px',
+                  padding: '10px 8px',
                   textAlign: 'right',
                   fontSize: 13,
-                  color: d.speedKmh ? 'var(--cyan)' : 'var(--text-muted)',
+                  color: d.lastLapTime ? 'var(--cyan)' : 'var(--text-muted)',
                 }}>
-                  {d.speedKmh != null ? `${d.speedKmh}` : '-'}
+                  {isRetired ? '-' : (d.lastLapTime ?? '-')}
+                </td>
+                <td style={{
+                  padding: '10px 8px',
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}>
+                  {d.compound && !isRetired ? (
+                    <span style={{ color: compoundColor ?? 'var(--text-muted)' }}>
+                      ● {d.compound.substring(0, 4)}
+                    </span>
+                  ) : '-'}
+                </td>
+                <td className="data-mono" style={{
+                  padding: '10px 8px',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: d.stintLaps != null ? 'var(--text-dim)' : 'var(--text-muted)',
+                }}>
+                  {!isRetired && d.stintLaps != null ? d.stintLaps : '-'}
+                </td>
+                <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                  {isInPit && !isRetired && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: 'var(--amber)',
+                      letterSpacing: '0.08em',
+                    }}>
+                      PIT
+                    </span>
+                  )}
+                  {isRetired && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: 'var(--red)',
+                      letterSpacing: '0.08em',
+                    }}>
+                      OUT
+                    </span>
+                  )}
                 </td>
               </tr>
             )
