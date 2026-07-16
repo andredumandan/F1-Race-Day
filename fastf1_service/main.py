@@ -1,4 +1,4 @@
-# fastf1-service/main.py
+# fastf1_service/main.py
 import asyncio
 from typing import List, Dict
 

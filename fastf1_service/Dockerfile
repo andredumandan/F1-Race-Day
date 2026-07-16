@@ -7,4 +7,4 @@ COPY . .
 EXPOSE 8000
 ENV PORT=8000
 # Use shell form so $PORT is expanded at runtime
-CMD uvicorn fastf1_service.main:app --host 0.0.0.0 --port $PORT
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT
