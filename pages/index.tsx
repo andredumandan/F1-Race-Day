@@ -21,7 +21,13 @@ interface Race {
   sessions: Session[]
 }
 
-const fetcher = (url: string) => fetch(url).then(r => r.json())
+const fetcher = async (url: string) => {
+  const r = await fetch(url)
+  if (!r.ok) throw new Error('Failed to fetch')
+  const body = await r.json()
+  if (body.error) throw new Error(body.error)
+  return body
+}
 
 export default function Home() {
   const [selectedRound, setSelectedRound] = useState<string | null>(null)

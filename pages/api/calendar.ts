@@ -30,7 +30,7 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
   }
 
   try {
-    const response = await fetch('https://ergast.com/api/f1/current/race.json', {
+    const response = await fetch('https://api.jolpi.ca/ergast/f1/current/races.json', {
       signal: AbortSignal.timeout(10000),
     })
     if (!response.ok) throw new Error(`Ergast responded ${response.status}`)
