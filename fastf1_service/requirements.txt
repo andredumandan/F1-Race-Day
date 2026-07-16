@@ -1,5 +1,6 @@
 # fastf1-service/requirements.txt
 fastf1==3.8.3
+signalrcore==0.9.5
 fastapi==0.110.2
 uvicorn[standard]==0.30.1
 pydantic==2.7.4

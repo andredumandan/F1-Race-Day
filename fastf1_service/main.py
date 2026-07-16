@@ -1,56 +1,221 @@
 # fastf1_service/main.py
-import asyncio
-from typing import List, Dict
+"""
+IMPORTANT LIMITATION (read before deploying):
+
+FastF1's live timing client is designed to RECORD data during a session for
+later analysis, not to serve structured live telemetry over HTTP. Quote from
+the official docs: "Live timing data can only be recorded during a live
+session, not used in real-time for analysis."
+
+This service works around that by:
+  1. Running SignalRClient in a background thread, writing raw stream
+     messages to a file as they arrive.
+  2. Tailing that file and parsing each line back into [topic, payload, ts].
+  3. Exposing the latest payload per topic via /live.
+
+Some topics (TimingData, WeatherData, TrackStatus, DriverList, SessionInfo,
+RaceControlMessages, ...) are plain JSON and genuinely useful as-is.
+
+Two topics (CarData.z, Position.z) are zlib+base64 compressed per-car
+telemetry (speed/throttle/brake/gear and X/Y/Z position). This service
+best-effort decodes them, but this is an unofficial reverse-engineered
+format, not something FastF1 exposes as a supported API, so treat it as
+"working today" rather than guaranteed stable.
+
+There is no clean "gap to leader" or "isPitStopped" field handed to you —
+if you need that, you'd derive it yourself from TimingData.
+"""
+
+import ast
+import base64
+import json
+import logging
+import os
+import threading
+import time
+import zlib
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from fastf1 import SignalRClient
+
+from fastf1.livetiming.client import SignalRClient
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("fastf1-live")
 
 app = FastAPI(title="FastF1 Live API")
 
-# Allow CORS from any origin (for dev purposes)
+# NOTE: allow_credentials=True with allow_origins=["*"] is invalid per the
+# CORS spec (browsers will ignore the credentials header). Since this is a
+# public read-only API with no cookies/auth, drop credentials instead of
+# restricting origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# In‑memory store of the latest telemetry per driver
-latest_telemetry: Dict[int, dict] = {}
+# Render's free web service has an ephemeral filesystem - that's fine here,
+# this file only needs to survive for the life of one running session.
+RAW_FILE = os.environ.get("LIVE_DATA_FILE", "/tmp/live_data.txt")
+RECORD_TIMEOUT = int(os.environ.get("RECORD_TIMEOUT_SECONDS", "3600"))  # exit if no data for 1hr
 
-async def signalr_worker() -> None:
-    """Connect to the official F1 feed and update *latest_telemetry*.
-    This runs in a background task started when the FastAPI app starts."""
-    client = SignalRClient()
-    await client.start_async()
+# Topics that are plain JSON, safe to hand back as-is
+_PLAIN_TOPICS = {
+    "TimingData", "TimingStats", "TimingAppData", "WeatherData",
+    "TrackStatus", "SessionInfo", "SessionStatus", "DriverList",
+    "RaceControlMessages", "TopThree", "LapCount", "ExtrapolatedClock",
+    "Heartbeat",
+}
+# Topics that are zlib+base64 compressed
+_COMPRESSED_TOPICS = {"CarData.z", "Position.z"}
 
-    async for msg in client.messages:
-        # Each message is a dict containing telemetry data.  We store it keyed by driver number.
-        if isinstance(msg, dict) and "driverNumber" in msg:
-            driver_number = int(msg["driverNumber"])
-            latest_telemetry[driver_number] = msg
+latest_by_topic: Dict[str, Any] = {}
+_state_lock = threading.Lock()
+_recorder_thread: Optional[threading.Thread] = None
+_recorder_error: Optional[str] = None
 
-    await client.stop_async()
 
-# Start the SignalR worker when the app starts up
+def _decode_compressed(payload: str) -> Any:
+    """Best-effort decode of F1's zlib+base64 compressed channels."""
+    raw = base64.b64decode(payload)
+    inflated = zlib.decompress(raw, -zlib.MAX_WBITS)
+    return json.loads(inflated)
+
+
+def _parse_line(line: str) -> Optional[List[Any]]:
+    """Each recorded line is a Python repr of [topic, payload, timestamp],
+    written by SignalRClient via str(msg). Not JSON (single quotes, True/
+    False), so ast.literal_eval is the correct/safe parser here."""
+    line = line.strip()
+    if not line:
+        return None
+    try:
+        parsed = ast.literal_eval(line)
+    except (ValueError, SyntaxError):
+        return None
+    if not isinstance(parsed, list) or len(parsed) < 2:
+        return None
+    return parsed
+
+
+def _tail_and_update(stop_event: threading.Event) -> None:
+    """Continuously read new lines appended to RAW_FILE and update
+    latest_by_topic. Runs in its own thread alongside the recorder."""
+    offset = 0
+    while not stop_event.is_set():
+        if not os.path.exists(RAW_FILE):
+            time.sleep(1)
+            continue
+        try:
+            with open(RAW_FILE, "r") as f:
+                f.seek(offset)
+                new_lines = f.readlines()
+                offset = f.tell()
+        except OSError:
+            time.sleep(1)
+            continue
+
+        for line in new_lines:
+            parsed = _parse_line(line)
+            if not parsed:
+                continue
+            topic, payload = parsed[0], parsed[1]
+            value: Any = payload
+            if topic in _COMPRESSED_TOPICS:
+                try:
+                    value = _decode_compressed(payload)
+                except Exception:
+                    # Decoding is best-effort; skip malformed frames
+                    continue
+            with _state_lock:
+                latest_by_topic[topic] = {
+                    "data": value,
+                    "received_at": time.time(),
+                }
+        time.sleep(1)
+
+
+def _record_forever(stop_event: threading.Event) -> None:
+    """Runs SignalRClient.start() - this is BLOCKING and must stay in its
+    own thread, never awaited directly in the asyncio event loop."""
+    global _recorder_error
+    client = SignalRClient(
+        filename=RAW_FILE,
+        filemode="w",
+        timeout=RECORD_TIMEOUT,
+        logger=logger,
+    )
+    try:
+        client.start()
+    except Exception as e:
+        _recorder_error = str(e)
+        logger.exception("SignalRClient stopped unexpectedly")
+
+
 @app.on_event("startup")
-async def startup() -> None:
-    asyncio.create_task(signalr_worker())
+def startup() -> None:
+    stop_event = threading.Event()
+    app.state.stop_event = stop_event
 
-class TelemetryResponse(BaseModel):
-    driverNumber: int
-    lapNumber: int | None = None
-    gapToLeader: float | None = None
-    speedKmh: float | None = None
-    isPitStopped: bool | None = None
+    recorder = threading.Thread(target=_record_forever, args=(stop_event,), daemon=True)
+    recorder.start()
 
-@app.get("/live", response_model=List[TelemetryResponse])
-async def get_live() -> List[TelemetryResponse]:
-    if not latest_telemetry:
-        raise HTTPException(status_code=503, detail="No telemetry available yet")
-    # Convert internal dicts to TelemetryResponse objects
-    return [TelemetryResponse(**{k: v for k, v in d.items() if k in TelemetryResponse.__fields__})
-            for d in latest_telemetry.values()]
+    tailer = threading.Thread(target=_tail_and_update, args=(stop_event,), daemon=True)
+    tailer.start()
+
+    app.state.recorder_thread = recorder
+    app.state.tailer_thread = tailer
+
+
+@app.on_event("shutdown")
+def shutdown() -> None:
+    stop_event: threading.Event = app.state.stop_event
+    stop_event.set()
+
+
+@app.get("/health")
+def health() -> dict:
+    """Cheap endpoint for cold-start warmup pings / uptime checks."""
+    recorder_alive = bool(
+        getattr(app.state, "recorder_thread", None)
+        and app.state.recorder_thread.is_alive()
+    )
+    return {
+        "status": "ok",
+        "recorder_alive": recorder_alive,
+        "recorder_error": _recorder_error,
+        "topics_seen": list(latest_by_topic.keys()),
+    }
+
+
+@app.get("/live")
+def get_live(topic: Optional[str] = None) -> dict:
+    """Returns the latest received payload per topic.
+
+    NOTE: there is no per-driver 'live' summary built in - F1's stream isn't
+    handed to you that way. TimingData is the closest thing to per-driver
+    gaps/sector times; CarData.z / Position.z (best-effort decoded above)
+    carry per-car telemetry and GPS position, keyed by car number inside
+    the decoded payload.
+    """
+    with _state_lock:
+        if not latest_by_topic:
+            raise HTTPException(
+                status_code=503,
+                detail="No live timing data yet. Either no session is "
+                       "currently live, or the connection hasn't received "
+                       "data yet - check /health.",
+            )
+        if topic:
+            if topic not in latest_by_topic:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No data yet for topic '{topic}'. "
+                           f"Available: {list(latest_by_topic.keys())}",
+                )
+            return {topic: latest_by_topic[topic]}
+        return dict(latest_by_topic)
